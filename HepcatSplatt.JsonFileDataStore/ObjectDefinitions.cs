@@ -114,6 +114,7 @@ namespace HepcatSplatt.JsonFileDataStore
     {
         T Get(int id);
         T Save(T instance);
+        T Delete(T doomed);
         IEnumerable<T> List();
     }
 
@@ -187,6 +188,18 @@ namespace HepcatSplatt.JsonFileDataStore
         {
             Refresh();
             return _data;
+        }
+
+        public virtual T Delete(T doomed)
+        {
+            var existing = Get(doomed.ID);
+            if (null != existing)
+            {
+                _data.RemoveAt(_data.FindIndex(ent => ent.ID == doomed.ID));
+                Persist();
+            }
+            doomed.ID = 0;
+            return doomed;
         }
 
         /// <summary>

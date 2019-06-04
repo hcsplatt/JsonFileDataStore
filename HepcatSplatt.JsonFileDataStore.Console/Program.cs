@@ -73,6 +73,19 @@ namespace HepcatSplatt.JsonFileDataStore.Console
             {
                 Display(e);
             }
+            Console.WriteLine();
+            Console.WriteLine($"press any key to continue delete of {emp.Name}");
+            Console.ReadKey();
+
+            myRepo.Delete(emp);
+
+            Console.WriteLine("press any key to relist all Employees");
+            Console.ReadKey();
+            foreach (var e in myRepo.List())
+            {
+                Display(e);
+            }
+
 
             // clean up
             File.Delete(myRepo.StoreFile);
