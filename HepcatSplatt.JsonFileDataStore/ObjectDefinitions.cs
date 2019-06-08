@@ -26,7 +26,7 @@
  * Add the reference to the HepcatSplatt.JsonFileDataStore namespace.
  * Add this interface to the Employee model (or any other model you wish to 'persist')
  
-    public class Employee : IUniquelyIdentifiable { ... }
+    public class Employee : IUniqueByInt { ... }
 
  
  * define MockEmployeeDatabase (or any desired repository for another model) by deriving from the abstract class:
@@ -51,7 +51,7 @@
 
   services.Configure<JsonFileDataStoreOpts>(_config.GetSection("JsonFileDataStoreOpts"));
 
-  services.AddSingleton<IJsonDataService<Employee>, MockEmployeeRepository>();
+  services.AddSingleton<ICRUDProvider<Employee>, MockEmployeeRepository>();
 
 
 * Define repository service by deriving from the abstract class and inject the configuration service:
@@ -68,15 +68,15 @@
  *
  * Revise the ctor (and injected service field) for the EmployeeController as follows:
   
-        private readonly IJsonDataService<Employee> _empRepos;
+        private readonly ICRUDProvider<Employee> _empRepos;
 
-        public EmployeeController(IJsonDataService<Employee> empRepos)
+        public EmployeeController(ICRUDProvider<Employee> empRepos)
         {
             _empRepos = empRepos;
         }
   
  * You will need to slightly rename the CRUD operations consumed by the EmployeeController
- * to match the IJsonDataService definitions.
+ * to match the ICRUDProvider definitions.
  * 
  * See the Xml comments for more detail
  * 
@@ -98,7 +98,7 @@ namespace HepcatSplatt.JsonFileDataStore
     /// As design-by-contract, this value will
     /// be used to uniquely identify an entity.
     /// </summary>
-    public interface IUniquelyIdentifiable
+    public interface IUniqueByInt
     {
         int ID { get; set; }
     }
@@ -110,12 +110,13 @@ namespace HepcatSplatt.JsonFileDataStore
         bool EnforceIdentity { get; set; }
     }
 
-    public interface IJsonDataService<T> where T : IUniquelyIdentifiable
+    public interface ICRUDProvider<T> where T : IUniqueByInt
     {
-        T Get(int id);
-        T Save(T instance);
+        IEnumerable<T> Read();
+        T Read(int id);
+        T Create(T instance);
+        T Update(T instance);
         T Delete(T doomed);
-        IEnumerable<T> List();
     }
 
     #endregion
@@ -157,7 +158,7 @@ namespace HepcatSplatt.JsonFileDataStore
     /// Provides base functionality for crud operations using Json saved to a flat file.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public abstract class AbstractJsonRepository<T> : IJsonDataService<T> where T : IUniquelyIdentifiable
+    public abstract class AbstractJsonRepository<T> : ICRUDProvider<T> where T : IUniqueByInt
     {
         private string _store;
         private List<T> _data;
@@ -174,7 +175,7 @@ namespace HepcatSplatt.JsonFileDataStore
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public virtual T Get(int id)
+        public virtual T Read(int id)
         {
             Refresh();
             return _data.FirstOrDefault(ent => ent.ID == id);
@@ -184,7 +185,7 @@ namespace HepcatSplatt.JsonFileDataStore
         /// Returns all entities in the data store.
         /// </summary>
         /// <returns></returns>
-        public virtual IEnumerable<T> List()
+        public virtual IEnumerable<T> Read()
         {
             Refresh();
             return _data;
@@ -192,7 +193,7 @@ namespace HepcatSplatt.JsonFileDataStore
 
         public virtual T Delete(T doomed)
         {
-            var existing = Get(doomed.ID);
+            var existing = Read(doomed.ID);
             if (null != existing)
             {
                 _data.RemoveAt(_data.FindIndex(ent => ent.ID == doomed.ID));
@@ -203,36 +204,48 @@ namespace HepcatSplatt.JsonFileDataStore
         }
 
         /// <summary>
-        /// Attempts to upsert (update or insert) the provided entity instance.
+        /// Attempts to insert the provided entity instance.
         /// For behavior details, see:
         /// <see cref="JsonFileDataStoreOpts.EnforceIdentity"/>
         /// </summary>
         /// <param name="instance"></param>
         /// <returns>The instance provided</returns>
-        public virtual T Save(T instance)
+        public virtual T Create(T instance)
         {
-            var existing = Get(instance.ID);
+
+            if (instance.ID == 0)
+            {
+                instance.ID = (_data.Count == 0) ? 1 : _data.Max(ent => ent.ID) + 1;
+            }
+            else
+            {
+                if (_opts.EnforceIdentity)
+                {
+                    throw new ArgumentException($"Instance.ID = {instance.ID} not found. Cannot create instance with ID > 0 when EnforceIdentity = true");
+                }
+            }
+            _data.Add(instance);
+
+
+
+            Persist();
+            return instance;
+        }
+
+
+
+        /// <summary>
+        /// Attempts to update the provided entity instance.
+        /// For behavior details, see:
+        /// <returns>The instance provided</returns>
+        public virtual T Update(T instance)
+        {
+            var existing = Read(instance.ID);
             if (null != existing)
             {
                 _data[_data.FindIndex(ent => ent.ID == instance.ID)] = instance;
             }
-            else
-            {
-                if (instance.ID == 0)
-                {
-                    instance.ID = (_data.Count == 0) ? 1 : _data.Max(ent => ent.ID) + 1;
-                }
-                else
-                {
-                    if (_opts.EnforceIdentity)
-                    {
-                        throw new ArgumentException($"Instance.ID = {instance.ID} not found. Cannot create instance with ID > 0 when EnforceIdentity = true");
-                    }
-                }
-                _data.Add(instance);
-            }
-            
-
+ 
             Persist();
             return instance;
         }

@@ -31,7 +31,7 @@ namespace HepcatSplatt.JsonFileDataStore.Console
             Console.WriteLine("press any key to continue with initial save of new Employee");
             Console.ReadKey();
 
-            myRepo.Save(emp);
+            myRepo.Create(emp);
 
             Console.WriteLine("after save:");
             Display(emp);
@@ -40,7 +40,7 @@ namespace HepcatSplatt.JsonFileDataStore.Console
             Console.ReadKey();
 
             emp.Name = "King Kong";
-            myRepo.Save(emp);
+            myRepo.Update(emp);
             Console.WriteLine("after update:");
             Display(emp);
 
@@ -54,7 +54,7 @@ namespace HepcatSplatt.JsonFileDataStore.Console
             Console.WriteLine("before save of second new Employee");
             Display(emp2);
  
-            myRepo.Save(emp2);
+            myRepo.Create(emp2);
 
             Console.WriteLine("press any key to continue with adding a third new Employee");
             Console.ReadKey();
@@ -65,11 +65,11 @@ namespace HepcatSplatt.JsonFileDataStore.Console
             Console.WriteLine("before save of third new Employee");
             Display(emp3);
 
-            myRepo.Save(emp3);
+            myRepo.Create(emp3);
 
             Console.WriteLine("press any key to list all Employees");
             Console.ReadKey();
-            foreach (var e in myRepo.List())
+            foreach (var e in myRepo.Read())
             {
                 Display(e);
             }
@@ -81,7 +81,7 @@ namespace HepcatSplatt.JsonFileDataStore.Console
 
             Console.WriteLine("press any key to relist all Employees");
             Console.ReadKey();
-            foreach (var e in myRepo.List())
+            foreach (var e in myRepo.Read())
             {
                 Display(e);
             }
@@ -103,7 +103,7 @@ namespace HepcatSplatt.JsonFileDataStore.Console
         }
     }
 
-    public class Employee : IUniquelyIdentifiable
+    public class Employee : IUniqueByInt
     {
         public int ID { get; set; }
         public string Name { get; set; }
